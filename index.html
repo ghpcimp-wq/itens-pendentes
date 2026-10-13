@@ -332,6 +332,27 @@ function compute(L){
       vlrFab:sum(ls.filter(l=>l.status==='FABRICADO'),l=>l.vlr),vlrTot:sum(ls,l=>l.vlr),ls});
   }
 
+  // Desbloqueio de faturamento por produto comprado
+  const BLOQ=new Set(['SC','FABRICADO']);
+  for(const c of compras){
+    c.desb=0; c.imed=0; c.contrib=new Map();
+    if(c.risco) continue;
+    const peds=new Set(c.scLines.map(l=>l.nunota));
+    for(const n of peds){
+      const ls=ped.get(n);
+      const own=sum(ls.filter(l=>l.codprod===c.codprod&&l.status==='SC'),l=>l.vlr);
+      let outros=0, unico=false;
+      if(ls[0].fp!=='SIM'){
+        outros=sum(ls.filter(l=>l.codprod!==c.codprod&&l.status==='AGUARDANDO OUTROS ITENS'),l=>l.vlr);
+        unico=ls.every(l=>!BLOQ.has(l.status)||l.codprod===c.codprod);
+      } else unico=true;          // fatura parcial: o próprio item fatura assim que chegar
+      const v=own+outros;
+      c.desb+=v; if(unico) c.imed+=v;
+      c.contrib.set(n,{own,outros,unico,parcial:ls[0].fp==='SIM'});
+    }
+    c.alav=c.vlr?c.desb/c.vlr:0;
+  }
+
   const total=sum(L,l=>l.vlr);
   const travado=sum(pedidos,p=>p.vlrTot);
   const dispParado=sum(pedidos,p=>p.vlrDisp);
@@ -418,6 +439,19 @@ function renderAll(){
 const subPedidosProd = r => `<table class="subtbl"><thead><tr><th>Pedido</th><th>Data</th><th class="r">Dias</th><th class="r">Qtd.</th><th class="r">Valor</th><th>Status</th><th>Fat. parcial</th></tr></thead><tbody>${
   [...r.lines].sort((a,b)=>b.dias-a.dias).map(l=>`<tr><td class="mono">${l.numnota} <span class="muted">(${l.nunota})</span></td><td>${fmtD(l.dt)}</td><td class="r num">${l.dias}</td><td class="r num">${dec.format(l.qtd)}</td><td class="r num">${brl2.format(l.vlr)}</td><td>${STATUS[l.status]?.lbl||esc(l.status)}</td><td>${esc(l.fp)}</td></tr>`).join('')}</tbody></table>`;
 
+function subCompras(r){
+  if(r.risco) return subPedidosProd(r);
+  const rows=[...r.contrib.entries()].map(([n,c])=>{const ls=D.ped.get(n);return {n,c,ls,l0:ls[0]};})
+    .sort((a,b)=>(b.c.own+b.c.outros)-(a.c.own+a.c.outros));
+  return `<table class="subtbl"><thead><tr><th>Pedido</th><th>Data</th><th class="r">Dias</th><th>Fat. parcial</th><th class="r">Este item</th><th class="r">Outros itens c/ estoque</th><th class="r">Desbloqueia</th><th>Situação após a compra</th></tr></thead><tbody>${
+    rows.map(({n,c,ls,l0})=>{
+      const outrosBloq=[...new Set(ls.filter(l=>l.codprod!==r.codprod&&(l.status==='SC'||l.status==='FABRICADO')).map(l=>l.ref))];
+      const sit=c.parcial?'<span class="tag t-ok">Fatura o item</span>'
+        :c.unico?'<span class="tag t-ok">Libera o pedido</span>'
+        :`<span class="tag t-alta" title="${esc(outrosBloq.join(', '))}">Ainda depende de ${outrosBloq.length} item(ns)</span>`;
+      return `<tr><td class="mono">${l0.numnota} <span class="muted">(${n})</span></td><td>${fmtD(l0.dt)}</td><td class="r num">${l0.dias}</td><td>${esc(l0.fp)}</td><td class="r num">${brl2.format(c.own)}</td><td class="r num">${c.outros?brl2.format(c.outros):'—'}</td><td class="r num strong">${brl2.format(c.own+c.outros)}</td><td>${sit}</td></tr>`;}).join('')}</tbody></table>`;
+}
+
 function initTables(){
   T.compras=makeTable($('tCompras'),[
     {k:'prio',t:'Prioridade',f:r=>tagPrio(r.prio),sort:r=>r.risco?-1:r.antigo},
@@ -427,10 +461,13 @@ function initTables(){
     {k:'dem',t:'Qtd. em carteira',a:'r',f:r=>`<span class="num">${dec.format(r.dem)}</span>`},
     {k:'est',t:'Estoque',a:'r',f:r=>`<span class="num ${r.est<0?'neg':''}">${dec.format(r.est)}</span>`},
     {k:'falta',t:'A comprar',a:'r',f:r=>`<span class="num strong">${dec.format(r.falta)}</span>`},
-    {k:'vlr',t:'Valor em carteira',a:'r',f:r=>`<span class="num">${brl2.format(r.vlr)}</span>`},
+    {k:'vlr',t:'Valor do item',a:'r',f:r=>`<span class="num">${brl2.format(r.vlr)}</span>`},
+    {k:'desb',t:'Desbloqueia',a:'r',f:r=>r.risco?'<span class="muted">—</span>':`<span class="num desb">${brl2.format(r.desb)}</span>`},
+    {k:'imed',t:'Imediato',a:'r',f:r=>r.risco?'<span class="muted">—</span>':`<span class="num ${r.imed?'':'muted'}">${brl2.format(r.imed)}</span>`},
+    {k:'alav',t:'Alavanc.',a:'r',f:r=>r.risco?'':`<span class="num ${r.alav>=2?'strong':''}">${r.alav.toLocaleString('pt-BR',{maximumFractionDigits:1})}×</span>`},
     {k:'antigo',t:'Pedido + antigo',a:'r',f:r=>`<span class="num ${r.antigo>30?'neg':''}">${r.antigo} d</span>`}
-  ],{sortKey:'vlr',id:r=>r.codprod,sub:subPedidosProd,onRender:(rows)=>{
-    $('iCompras').textContent=`${rows.length} produtos · ${brl0.format(rows.reduce((s,r)=>s+r.vlr,0))} em carteira`; }});
+  ],{sortKey:'desb',id:r=>r.codprod,sub:subCompras,onRender:(rows)=>{
+    $('iCompras').textContent=`${rows.length} produtos · ${brl0.format(rows.reduce((s,r)=>s+r.vlr,0))} em itens · ${brl0.format(rows.reduce((s,r)=>s+r.desb,0))} desbloqueáveis`; }});
 
   T.pedidos=makeTable($('tPedidos'),[
     {k:'numnota',t:'Pedido',f:r=>`<span class="strong mono">${r.numnota}</span> <span class="muted mono">(${r.nunota})</span>`},
