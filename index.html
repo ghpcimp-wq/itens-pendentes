@@ -72,7 +72,7 @@ thead th.c,td.c{text-align:center}
 thead th .ar{color:var(--ink-3);margin-left:4px;font-size:10px}
 tbody td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
 tbody tr.main:hover{background:#f8fafc;cursor:pointer}
-tbody tr.sub td{background:#fafbfc;padding:0}
+tbody tr.sub > td{background:#fafbfc;padding:0}
 .subtbl{margin:6px 10px 10px 36px;width:auto;min-width:60%;font-size:12.5px}
 .subtbl th{position:static;background:none;cursor:default;border-bottom:1px solid var(--line)}
 .subtbl td{border-bottom:1px dashed var(--line);padding:5px 10px}
@@ -84,6 +84,29 @@ tbody tr.sub td{background:#fafbfc;padding:0}
 .t-ok{background:var(--green-bg);color:var(--green)}
 .t-risk{background:#2b1d00;color:#ffd27a}
 .neg{color:var(--red);font-weight:600}
+.desb{color:var(--green);font-weight:600}
+.filahead{display:flex;gap:24px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.filahead .hint{max-width:760px;margin:0}
+.verba{background:#f8f9fb;border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-width:300px}
+.verba label{display:block;font-size:12px;color:var(--ink-2);font-weight:600;margin-bottom:5px}
+.verba input{width:100%;border:1px solid var(--line-2);border-radius:6px;padding:7px 10px;font:inherit;font-family:var(--mono);font-size:15px}
+.verba .vres{font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.verba .vres b{color:var(--green);font-family:var(--mono)}
+.curvebox{position:relative;border:1px solid var(--line);border-radius:8px;padding:10px 12px 6px;margin-bottom:14px}
+.curvebox svg{width:100%;height:220px;display:block}
+.curvelbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);font-family:var(--mono)}
+tr.inv td{background:#f3fbf6}
+.flr{font-family:var(--mono);font-weight:600}
+.rank{display:grid;grid-template-columns:28px minmax(150px,220px) 1fr 260px;align-items:center;gap:12px;font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line);cursor:pointer}
+.rank:last-child{border-bottom:none}
+.rank:hover{background:#f8fafc}
+.rank .pos{font-family:var(--mono);color:var(--ink-3);text-align:right}
+.rank .track{display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--grey-bg)}
+.rank .own{background:#c2262e}.rank .oth{background:#15803d}.rank .imd{outline:2px solid var(--ink);outline-offset:-2px}
+.rank .v{text-align:right;font-family:var(--mono);font-size:12.5px}
+.rank .v small{display:block;color:var(--ink-3)}
+.leg2{display:flex;gap:18px;font-size:12px;color:var(--ink-2);margin:-6px 0 10px}
+.leg2 i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .strong{font-weight:600}
 .muted{color:var(--ink-3)}
 .caret{display:inline-block;width:12px;color:var(--ink-3);transition:transform .15s}
@@ -103,9 +126,10 @@ footer{color:var(--ink-3);font-size:12px;text-align:center;margin-top:26px}
     <div class="sub">GHPC Group · Carteira pendente dos últimos 180 dias</div>
   </div>
   <div class="meta">
-    <span>Atualização do arquivo: <b id="mUpd">—</b></span>
+    <span>Pedidos: <b id="mUpd">—</b></span>
+    <span>Compras: <b id="mUpdC">—</b></span>
     <span>Pedidos até: <b id="mMax">—</b></span>
-    <label class="btn" title="Carregar um XLSX manualmente">Carregar XLSX<input id="fileIn" type="file" accept=".xlsx,.xls" hidden></label>
+    <label class="btn" title="Carregar um XLSX manualmente">Carregar XLSX<input id="fileIn" type="file" accept=".xlsx,.xls" multiple hidden></label>
   </div>
 </header>
 
@@ -122,6 +146,11 @@ footer{color:var(--ink-3);font-size:12px;text-align:center;margin-top:26px}
         <div class="lbl">Carteira aguardando compra (SC)</div>
         <div class="val" id="kScVal">—</div>
         <div class="det" id="kScDet">—</div>
+      </div>
+      <div class="kpi warn">
+        <div class="lbl">SC ainda sem compra</div>
+        <div class="val" id="kSem">—</div>
+        <div class="det" id="kSemDet">—</div>
       </div>
       <div class="kpi warn">
         <div class="lbl">Receita travada por SC</div>
@@ -159,14 +188,58 @@ footer{color:var(--ink-3);font-size:12px;text-align:center;margin-top:26px}
       </div>
     </section>
 
+    <section class="card" style="margin-bottom:18px">
+      <h2>Compras que mais destravam faturamento</h2>
+      <div class="hint" id="rankHint">—</div>
+      <div class="leg2"><span><i style="background:#c2262e"></i>Valor do próprio item</span><span><i style="background:#15803d"></i>Outros itens com estoque presos no mesmo pedido</span></div>
+      <div id="rank"></div>
+    </section>
+
     <nav class="tabs" id="tabs">
-      <button class="tab on" data-t="compras">Necessidade de compra<span class="cnt" id="cCompras">0</span></button>
+      <button class="tab on" data-t="fila">Fila de compra<span class="cnt" id="cFila">0</span></button>
+      <button class="tab" data-t="chegando">Chegando<span class="cnt" id="cCheg">0</span></button>
+      <button class="tab" data-t="compras">Necessidade de compra<span class="cnt" id="cCompras">0</span></button>
       <button class="tab" data-t="pedidos">Pedidos travados<span class="cnt" id="cPedidos">0</span></button>
       <button class="tab" data-t="fab">Fabricação<span class="cnt" id="cFab">0</span></button>
       <button class="tab" data-t="itens">Todos os itens<span class="cnt" id="cItens">0</span></button>
     </nav>
 
-    <div class="panel" data-p="compras">
+    <div class="panel" data-p="fila">
+      <div class="filahead">
+        <div>
+          <h2 style="margin:0 0 4px;font-size:14.5px">Sequência de compra que mais fatura por real investido</h2>
+          <div class="hint">Cada linha é uma <b>liberação</b>: um pedido inteiro (sem fatura parcial) ou um item de pedido com fatura parcial. A ordem segue o <b>FLR</b> = faturamento liberado ÷ valor dos itens que faltam comprar. Valores de venda.</div>
+        </div>
+        <div class="verba">
+          <label for="vVerba">Verba de compra (R$)</label>
+          <input id="vVerba" type="text" inputmode="numeric" placeholder="ex.: 50.000">
+          <div class="vres" id="vRes">Informe uma verba para simular.</div>
+        </div>
+      </div>
+      <div class="curvebox"><svg id="curve" viewBox="0 0 1000 240" preserveAspectRatio="none"></svg><div class="curvelbl" id="curveLbl"></div></div>
+      <div class="toolbar">
+        <input id="qFila" type="search" placeholder="Buscar pedido ou referência…">
+        <select id="fFila"><option value="">Todas as liberações</option><option value="verba">Somente dentro da verba</option><option value="ped">Somente pedidos completos</option><option value="item">Somente itens (fatura parcial)</option></select>
+        <button class="btn" id="expFila">Exportar fila (CSV)</button>
+        <span class="info" id="iFila"></span>
+      </div>
+      <div class="tblwrap"><table id="tFila"></table></div>
+      <p class="note" id="filaNote"></p>
+    </div>
+
+    <div class="panel hidden" data-p="chegando">
+      <h2 style="margin:0 0 4px;font-size:14.5px">Previsão de faturamento pelas compras em andamento</h2>
+      <div class="hint" style="margin-bottom:12px">Liberações cujos itens faltantes já foram todos comprados. A data é a maior previsão de entrega entre os itens que faltam no pedido.</div>
+      <div class="bars" id="prevSem" style="margin-bottom:16px"></div>
+      <div class="toolbar">
+        <input id="qCheg" type="search" placeholder="Buscar pedido ou referência…">
+        <select id="fCheg"><option value="">Todas</option><option value="Atrasada">Entrega atrasada</option><option value="No prazo">No prazo</option><option value="Sem data">Sem data prevista</option></select>
+        <span class="info" id="iCheg"></span>
+      </div>
+      <div class="tblwrap"><table id="tCheg"></table></div>
+    </div>
+
+    <div class="panel hidden" data-p="compras">
       <div class="toolbar">
         <input id="qCompras" type="search" placeholder="Buscar referência ou código…">
         <select id="fPrio">
@@ -177,11 +250,19 @@ footer{color:var(--ink-3);font-size:12px;text-align:center;margin-top:26px}
           <option value="Recente">Recente (até 15 dias)</option>
           <option value="Risco">Risco de falta (sem SC)</option>
         </select>
+        <select id="fSit">
+          <option value="">Todas as situações de compra</option>
+          <option value="Sem compra">Sem compra</option>
+          <option value="Compra parcial">Compra parcial</option>
+          <option value="Comprado">Comprado</option>
+          <option value="Entrega atrasada">Entrega atrasada</option>
+          <option value="Comprado (sem data)">Comprado (sem data)</option>
+        </select>
         <button class="btn" id="expCompras">Exportar lista de compra (CSV)</button>
         <span class="info" id="iCompras"></span>
       </div>
       <div class="tblwrap"><table id="tCompras"></table></div>
-      <p class="note"><b>A comprar</b> = soma das quantidades pendentes do produto em todos os pedidos (não fabricados) − estoque atual. Clique em uma linha para ver os pedidos que dependem do item. <b>Risco de falta</b> marca produtos sem linha em SC, mas cujo estoque não cobre a carteira somada.</p>
+      <p class="note"><b>Desbloqueia</b> = valor do próprio item + valor dos itens com estoque que estão presos nos mesmos pedidos sem fatura parcial. <b>Imediato</b> = parte desse valor em pedidos onde este item é a única pendência (compra = faturamento). <b>Alavanc.</b> = quanto cada R$ 1 do item destrava no total. <b>Saldo a comprar</b> = A comprar − quantidade já comprada e pendente de entrega. <b>A comprar</b> = soma das quantidades pendentes do produto em todos os pedidos (não fabricados) − estoque atual. Clique em uma linha para ver os pedidos que dependem do item. <b>Risco de falta</b> marca produtos sem linha em SC, mas cujo estoque não cobre a carteira somada.</p>
     </div>
 
     <div class="panel hidden" data-p="pedidos">
@@ -222,7 +303,8 @@ footer{color:var(--ink-3);font-size:12px;text-align:center;margin-top:26px}
 <script>
 /* ===== CONFIGURAÇÃO ===== */
 const CONFIG = {
-  dataUrl: 'data/PEDIDOS_PENDENTES.xlsx'   // caminho do XLSX no repositório
+  dataUrl: 'data/PEDIDOS_PENDENTES.xlsx',   // pedidos pendentes (diário)
+  comprasUrl: 'data/COMPRAS_PENDENTES.xlsx' // compras em andamento
 };
 
 /* ===== FORMATADORES ===== */
@@ -259,10 +341,25 @@ function toDate(v){
   return m ? new Date(+m[3],+m[2]-1,+m[1]) : null;
 }
 
-function parseWorkbook(ab){
+function readRows(ab){
   const wb = XLSX.read(ab,{type:'array'});
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null});
+}
+function tipoArquivo(rows){
+  const r=rows.find(r=>r&&r[2]!=null&&/^\s*\d+(\.\d+)?\s*$/.test(String(r[2])));
+  if(!r) return null;
+  const n=r.filter(v=>v!=null&&v!=='').length;
+  return n>=9 ? 'pedidos' : 'compras';   // pedidos: 12 colunas · compras: 6 colunas
+}
+function parseCompras(rows){
+  const out=[];
+  for(const r of rows){
+    if(r[0]==null||r[2]==null||isNaN(num(r[2]))||String(r[0]).match(/[a-z]/i)) continue;
+    out.push({nunota:num(r[0]),numnota:num(r[1]),codprod:num(r[2]),ref:String(r[3]??'').trim(),qtd:num(r[4]),prev:toDate(r[5])});
+  }
+  return out;
+}
+function parseWorkbook(rows){
   const today = new Date(); today.setHours(0,0,0,0);
   const out=[];
   for(const r of rows){
@@ -286,7 +383,7 @@ function parseWorkbook(ab){
 function prioridade(d){ return d>60?'Crítica':d>30?'Alta':d>15?'Média':'Recente'; }
 const PRIO_CLS = {'Crítica':'t-crit','Alta':'t-alta','Média':'t-media','Recente':'t-rec','Risco':'t-risk'};
 
-function compute(L){
+function compute(L,C){
   const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
   const byStatus={};
   for(const l of L){ (byStatus[l.status]??=[]).push(l); }
@@ -320,6 +417,23 @@ function compute(L){
     }
   }
 
+  // Compras em andamento: cobertura por produto
+  const today=new Date(); today.setHours(0,0,0,0);
+  const transit=new Map();
+  for(const c of (C||[])){ let t=transit.get(c.codprod); if(!t){t={qtd:0,pos:[]};transit.set(c.codprod,t);} t.qtd+=c.qtd; t.pos.push(c); }
+  for(const t of transit.values()) t.pos.sort((a,b)=>(a.prev?+a.prev:9e15)-(b.prev?+b.prev:9e15));
+  const cobMap=new Map();
+  for(const c of compras){
+    const t=transit.get(c.codprod);
+    c.trans=t?t.qtd:0; c.pos=t?t.pos:[]; c.saldo=c.falta; c.cob=false; c.data=null;
+    if(t){ let acc=0; for(const p of t.pos){ acc+=p.qtd; if(acc>=c.falta){ c.saldo=0; c.cob=true; c.data=p.prev; break; } }
+      if(!c.cob) c.saldo=Math.max(c.falta-t.qtd,0); }
+    c.sit=!C?'':c.cob?(!c.data?'Comprado (sem data)':c.data<today?'Entrega atrasada':'Comprado'):(c.trans>0?'Compra parcial':'Sem compra');
+    cobMap.set(c.codprod,c);
+  }
+  const isCob=cp=>!!cobMap.get(cp)?.cob;
+  const etaDe=lines=>{ let m=null; for(const l of lines){ const d=cobMap.get(l.codprod)?.data; if(!d) return null; if(!m||d>m) m=d; } return m; };
+
   // Pedidos com SC
   const ped=new Map();
   for(const l of L){ (ped.get(l.nunota)||ped.set(l.nunota,[]).get(l.nunota)).push(l); }
@@ -327,8 +441,9 @@ function compute(L){
   for(const [nunota,ls] of ped){
     const s=ls.filter(l=>l.status==='SC'); if(!s.length) continue;
     const disp=ls.filter(l=>l.status==='AGUARDANDO OUTROS ITENS'||l.status==='AGUARDANDO FATURAMENTO');
+    const sCob=s.filter(l=>isCob(l.codprod));
     pedidos.push({nunota,numnota:ls[0].numnota,dt:ls[0].dt,dias:ls[0].dias,fp:ls[0].fp,top:ls[0].top,
-      itens:ls.length,itensSC:s.length,vlrSC:sum(s,l=>l.vlr),vlrDisp:sum(disp,l=>l.vlr),
+      itens:ls.length,itensSC:s.length,scCob:sCob.length,eta:sCob.length===s.length?etaDe(s):null,vlrSC:sum(s,l=>l.vlr),vlrDisp:sum(disp,l=>l.vlr),
       vlrFab:sum(ls.filter(l=>l.status==='FABRICADO'),l=>l.vlr),vlrTot:sum(ls,l=>l.vlr),ls});
   }
 
@@ -353,12 +468,42 @@ function compute(L){
     c.alav=c.vlr?c.desb/c.vlr:0;
   }
 
+  // Fila de compra (FLR)
+  const fila=[], filaFab=[];
+  for(const [n,ls] of ped){
+    const s=ls.filter(l=>l.status==='SC'); if(!s.length) continue;
+    const l0=ls[0];
+    if(l0.fp==='SIM'){
+      const byP=new Map(); s.forEach(l=>(byP.get(l.codprod)||byP.set(l.codprod,[]).get(l.codprod)).push(l));
+      for(const [cp,pl] of byP){ const v=sum(pl,l=>l.vlr);
+        fila.push({id:n+'-'+cp,tipo:'item',nunota:n,numnota:l0.numnota,dt:l0.dt,dias:l0.dias,fp:l0.fp,need:pl,compra:v,fat:v,refs:[pl[0].ref]}); }
+    } else if(ls.some(l=>l.status==='FABRICADO')){
+      filaFab.push(l0.numnota);
+    } else {
+      const compra=sum(s,l=>l.vlr), fat=sum(ls,l=>l.vlr);
+      fila.push({id:String(n),tipo:'ped',nunota:n,numnota:l0.numnota,dt:l0.dt,dias:l0.dias,fp:l0.fp,need:s,compra,fat,
+        refs:[...new Set(s.map(l=>l.ref))],nItens:ls.length});
+    }
+  }
+  const chegando=[];
+  for(const f of fila){
+    const unc=f.need.filter(l=>!isCob(l.codprod));
+    f.jaComp=f.need.length-unc.length; f.unc=unc;
+    if(C&&!unc.length){ f.eta=etaDe(f.need); f.sitEta=!f.eta?'Sem data':f.eta<today?'Atrasada':'No prazo'; chegando.push(f); }
+    else f.compra=sum(unc,l=>l.vlr);
+  }
+  for(let i=fila.length-1;i>=0;i--) if(chegando.includes(fila[i])) fila.splice(i,1);
+  chegando.sort((a,b)=>(a.eta?+a.eta:9e15)-(b.eta?+b.eta:9e15));
+  fila.forEach(f=>f.flr=f.compra?f.fat/f.compra:0);
+  fila.sort((a,b)=>b.flr-a.flr||b.dias-a.dias||b.fat-a.fat);
+  let ac=0,af=0; fila.forEach((f,i)=>{f.pos=i+1; ac+=f.compra; af+=f.fat; f.accC=ac; f.accF=af;});
+
   const total=sum(L,l=>l.vlr);
   const travado=sum(pedidos,p=>p.vlrTot);
   const dispParado=sum(pedidos,p=>p.vlrDisp);
   const old=sc.filter(l=>l.dias>30);
   const fabL=byStatus['FABRICADO']||[], fatL=byStatus['AGUARDANDO FATURAMENTO']||[];
-  return {L,byStatus,sc,compras,fabr,pedidos,total,travado,dispParado,old,fabL,fatL,
+  return {L,C,ped,fila,filaFab,chegando,today,byStatus,sc,compras,fabr,pedidos,total,travado,dispParado,old,fabL,fatL,
     maxDt:new Date(Math.max(...L.map(l=>l.dt)))};
 }
 
@@ -374,7 +519,7 @@ function makeTable(el, cols, opts={}){
       `<th class="${c.a||''}" data-k="${c.k}">${c.t}<span class="ar">${st.key===c.k?(st.dir>0?'▲':'▼'):''}</span></th>`).join('')+'</tr></thead><tbody>';
     rows.slice(0,lim).forEach((r,i)=>{
       const id=opts.id?opts.id(r):i, open=st.open.has(id);
-      h+=`<tr class="main${open?' open':''}" data-id="${esc(id)}">`+(opts.sub?'<td><span class="caret">▶</span></td>':'')+
+      h+=`<tr class="main${open?' open':''} ${opts.rowClass?opts.rowClass(r):''}" data-id="${esc(id)}">`+(opts.sub?'<td><span class="caret">▶</span></td>':'')+
         cols.map(c=>`<td class="${c.a||''}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')+'</tr>';
       if(opts.sub&&open) h+=`<tr class="sub"><td colspan="${cols.length+1}">${opts.sub(r)}</td></tr>`;
     });
@@ -386,13 +531,17 @@ function makeTable(el, cols, opts={}){
     const th=e.target.closest('th[data-k]');
     if(th&&el.contains(th)&&!th.closest('.subtbl')){ const k=th.dataset.k; st.dir=st.key===k?-st.dir:-1; st.key=k; render(); return; }
     const tr=e.target.closest('tr.main');
-    if(tr&&opts.sub){ const id=tr.dataset.id; const key=isNaN(id)?id:+id; st.open.has(key)?st.open.delete(key):st.open.add(key); render(); }
+    if(tr&&opts.sub){ const id=tr.dataset.id; const key=st.rows.length&&typeof (opts.id(st.rows[0]))==='string'?id:(isNaN(id)?id:+id); st.open.has(key)?st.open.delete(key):st.open.add(key); render(); }
   });
   return {set(rows){st.rows=rows;render();}};
 }
 
 /* ===== RENDERIZAÇÃO ===== */
 let D=null, T={};
+const SIT_CLS={'Sem compra':'t-crit','Compra parcial':'t-alta','Entrega atrasada':'t-alta','Comprado':'t-ok','Comprado (sem data)':'t-media'};
+const sitTag = r => !r.sit?'':`<span class="tag ${SIT_CLS[r.sit]}">${r.sit}${r.cob&&r.data?' · '+r.data.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):''}</span>`;
+const subPOs = r => !r.pos||!r.pos.length?'':`<table class="subtbl"><thead><tr><th>Pedido de compra</th><th class="r">Qtd. pendente</th><th>Previsão de entrega</th></tr></thead><tbody>${
+  r.pos.map(p=>`<tr><td class="mono">${p.numnota} <span class="muted">(${p.nunota})</span></td><td class="r num">${dec.format(p.qtd)}</td><td class="${p.prev&&p.prev<D.today?'neg':''}">${fmtD(p.prev)}${p.prev&&p.prev<D.today?' · atrasada':''}</td></tr>`).join('')}</tbody></table>`;
 const tagPrio = p => `<span class="tag ${PRIO_CLS[p]}">${p==='Risco'?'Risco de falta':p}</span>`;
 
 function renderAll(){
@@ -411,6 +560,25 @@ function renderAll(){
   $('kFat').textContent=brl0.format(sumV(d.fatL));
   $('kFatDet').textContent=`${int.format(d.fatL.length)} itens · ${int.format(new Set(d.fatL.map(l=>l.nunota)).size)} pedidos`;
   $('mMax').textContent=fmtD(d.maxDt);
+  if(d.C){
+    const semL=d.sc.filter(l=>!d.compras.find(c=>c.codprod===l.codprod)?.cob);
+    const atrL=d.sc.filter(l=>d.compras.find(c=>c.codprod===l.codprod)?.sit==='Entrega atrasada');
+    $('kSem').textContent=brl0.format(sumV(semL));
+    $('kSemDet').textContent=`${int.format(new Set(semL.map(l=>l.codprod)).size)} produtos · ${brl0.format(sumV(d.sc)-sumV(semL))} já comprado` + (atrL.length?` · ${brl0.format(sumV(atrL))} com entrega atrasada`:'');
+  } else { $('kSem').textContent='—'; $('kSemDet').textContent='Arquivo de compras não carregado'; }
+  // Previsão semanal
+  const wk=dt=>{ const x=new Date(dt); const g=(x.getDay()+6)%7; x.setDate(x.getDate()-g); return x; };
+  const t0=wk(d.today), buckets=[{lbl:'Atrasadas',v:0,n:0,c:'#c2262e'}];
+  for(let i=0;i<8;i++){ const a=new Date(t0); a.setDate(a.getDate()+7*i); buckets.push({lbl:i===0?'Esta semana':`Sem. ${a.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`,a,v:0,n:0,c:'#15803d'}); }
+  buckets.push({lbl:'Depois',v:0,n:0,c:'#64748b'},{lbl:'Sem data',v:0,n:0,c:'#cbd5e1'});
+  for(const f of d.chegando){ let b;
+    if(!f.eta) b=buckets[buckets.length-1]; else if(f.eta<d.today) b=buckets[0];
+    else { const i=Math.floor((wk(f.eta)-t0)/(7*864e5)); b=i<8?buckets[1+i]:buckets[9]; }
+    b.v+=f.fat; b.n++; }
+  const mxb=Math.max(...buckets.map(b=>b.v),1);
+  $('prevSem').innerHTML=d.C?buckets.map(b=>`<div class="bar"><span>${b.lbl}</span><div class="track"><div class="fill" style="width:${b.v/mxb*100}%;background:${b.c}"></div></div><span class="v">${brl0.format(b.v)}<small>${b.n} lib.</small></span></div>`).join('')
+    :'<p class="muted">Carregue o arquivo de compras pendentes para ver a previsão.</p>';
+  $('cCheg').textContent=d.chegando.length;
 
   // Aging
   const faixas=[['Até 7 dias',0,7,'#94a3b8'],['8 a 15 dias',8,15,'#60a5fa'],['16 a 30 dias',16,30,'#f59e0b'],['31 a 60 dias',31,60,'#ea580c'],['Mais de 60 dias',61,1e9,'#c2262e']];
@@ -433,14 +601,66 @@ function renderAll(){
   const sel=$('fStatus'); sel.length=1;
   Object.keys(d.byStatus).sort().forEach(k=>sel.add(new Option(`${STATUS[k]?.lbl||k} (${d.byStatus[k].length})`,k)));
 
-  filterCompras(); filterPedidos(); filterFab(); filterItens();
+  // Ranking de desbloqueio
+  const top=[...d.compras].filter(c=>!c.risco).sort((a,b)=>b.desb-a.desb).slice(0,10);
+  const mxd=Math.max(...top.map(c=>c.desb),1);
+  const totDesb=d.compras.reduce((s,c)=>s+c.desb,0), totImed=d.compras.reduce((s,c)=>s+c.imed,0);
+  $('rankHint').textContent=`Valor que cada compra destrava (item + itens com estoque presos nos mesmos pedidos). Itens do mesmo pedido compartilham esse valor, por isso os totais não devem ser somados. Liberação imediata (item é a única pendência do pedido): ${brl0.format(totImed)} somando toda a lista.`;
+  $('rank').innerHTML=top.map((c,i)=>`<div class="rank" data-cod="${c.codprod}"><span class="pos">${i+1}</span><span class="mono strong">${esc(c.ref)}</span>
+    <div class="track" style="width:${c.desb/mxd*100}%"><div class="own" style="width:${c.vlr/c.desb*100}%"></div><div class="oth" style="flex:1"></div></div>
+    <span class="v">${brl0.format(c.desb)} <span class="muted">(${c.alav.toLocaleString('pt-BR',{maximumFractionDigits:1})}×)</span><small>imediato ${brl0.format(c.imed)} · ${c.nPed} ped.</small></span></div>`).join('');
+  $('cFila').textContent=d.fila.length;
+  $('filaNote').innerHTML=`<b>Como usar:</b> compre de cima para baixo. Cada linha só vira faturamento quando todos os itens dela chegam; abra a linha para ver o que comprar. Com verba informada, a fila é preenchida na ordem e pula liberações que não cabem no saldo restante.`+
+    (d.filaFab.length?` Ficam fora da fila ${d.filaFab.length} pedido(s) sem fatura parcial que também dependem de fabricação (${d.filaFab.join(', ')}).`:'');
+  aplicaVerba();
+  filterCompras(); filterPedidos(); filterFab(); filterItens(); filterCheg();
 }
 
 const subPedidosProd = r => `<table class="subtbl"><thead><tr><th>Pedido</th><th>Data</th><th class="r">Dias</th><th class="r">Qtd.</th><th class="r">Valor</th><th>Status</th><th>Fat. parcial</th></tr></thead><tbody>${
   [...r.lines].sort((a,b)=>b.dias-a.dias).map(l=>`<tr><td class="mono">${l.numnota} <span class="muted">(${l.nunota})</span></td><td>${fmtD(l.dt)}</td><td class="r num">${l.dias}</td><td class="r num">${dec.format(l.qtd)}</td><td class="r num">${brl2.format(l.vlr)}</td><td>${STATUS[l.status]?.lbl||esc(l.status)}</td><td>${esc(l.fp)}</td></tr>`).join('')}</tbody></table>`;
 
+/* ===== FILA DE COMPRA ===== */
+let VERBA=0, INV=new Set();
+function parseVerba(v){ const d=String(v).replace(/[^\d,]/g,'').replace(',','.'); return parseFloat(d)||0; }
+function aplicaVerba(){
+  VERBA=parseVerba($('vVerba').value); INV=new Set();
+  try{ localStorage.setItem('verbaCompra',$('vVerba').value); }catch(e){}
+  if(VERBA>0){ let rest=VERBA, c=0, f=0;
+    for(const x of D.fila){ if(x.compra<=rest){ INV.add(x.id); rest-=x.compra; c+=x.compra; f+=x.fat; } }
+    const np=D.fila.filter(x=>INV.has(x.id)&&x.tipo==='ped').length;
+    $('vRes').innerHTML=`Comprando <b style="color:var(--ink)">${brl0.format(c)}</b> libera <b>${brl0.format(f)}</b> de faturamento (${(f/c||0).toLocaleString('pt-BR',{maximumFractionDigits:1})}×) · ${INV.size} liberações, ${np} pedidos completos`;
+  } else $('vRes').textContent='Informe uma verba para simular.';
+  drawCurve(); filterFila();
+}
+function drawCurve(){
+  const F=D.fila; if(!F.length){ $('curve').innerHTML=''; return; }
+  const W=1000,H=240,pl=4,pt=8,pb=6, mx=F[F.length-1].accC, my=F[F.length-1].accF;
+  const X=v=>pl+v/mx*(W-pl*2), Y=v=>H-pb-v/my*(H-pt-pb);
+  let d=`M${X(0)},${Y(0)}`; F.forEach(f=>{ d+=` L${X(f.accC)},${Y(f.accF)}`; });
+  let g='';
+  for(let i=1;i<4;i++){ const y=Y(my*i/4); g+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#e5e7eb" stroke-width="1" vector-effect="non-scaling-stroke"/>`; }
+  let v='';
+  if(VERBA>0&&VERBA<mx){ const x=X(VERBA); const cut=F.filter(f=>f.accC<=VERBA).pop(); const yv=Y(cut?cut.accF:0);
+    v=`<rect x="0" y="0" width="${x}" height="${H}" fill="#15803d" opacity=".06"/><line x1="${x}" x2="${x}" y1="0" y2="${H}" stroke="#15803d" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/><circle cx="${x}" cy="${yv}" r="4" fill="#15803d"/>`; }
+  $('curve').innerHTML=g+v+`<path d="${d} L${X(mx)},${H-pb} L${X(0)},${H-pb} Z" fill="#0f2a4a" opacity=".07"/><path d="${d}" fill="none" stroke="#0f2a4a" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+  $('curveLbl').innerHTML=`<span>R$ 0 comprado</span><span>Faturamento liberado acumulado (vertical, até ${brl0.format(my)}) × compra acumulada na ordem da fila (horizontal)</span><span>${brl0.format(mx)}</span>`;
+}
+const subFila = r => `<table class="subtbl"><thead><tr><th>Referência</th><th class="r">Cód.</th><th class="r">Qtd.</th><th class="r">Estoque</th><th class="r">Valor</th><th>Compra</th></tr></thead><tbody>${
+  r.need.map(l=>{const c=D.compras.find(x=>x.codprod===l.codprod)||{};return `<tr><td class="mono">${esc(l.ref)}</td><td class="r num muted">${l.codprod}</td><td class="r num">${dec.format(l.qtd)}</td><td class="r num">${dec.format(l.est)}</td><td class="r num">${brl2.format(l.vlr)}</td><td>${sitTag(c)||'<span class="tag t-crit">Comprar</span>'}</td></tr>`;}).join('')}</tbody></table>`;
+function filterFila(){
+  const q=$('qFila').value.trim().toLowerCase(), f=$('fFila').value;
+  T.fila.set(D.fila.filter(r=>(!f||(f==='verba'?INV.has(r.id):r.tipo===f))&&match(q,r.numnota,r.nunota,...r.refs)));
+}
+function exportFila(){
+  const n=v=>String(Math.round(v*100)/100).replace('.',',');
+  const lines=[['Posição','Tipo','Pedido','NUNOTA','Data','Dias','Itens a comprar','Referências','Compra necessária','Faturamento liberado','FLR','Compra acumulada','Faturamento acumulado','Dentro da verba'].join(';')];
+  D.fila.forEach(r=>lines.push([r.pos,r.tipo==='ped'?'Pedido completo':'Item (fat. parcial)',r.numnota,r.nunota,fmtD(r.dt),r.dias,r.unc.length,[...new Set(r.unc.map(l=>l.ref))].join(', '),n(r.compra),n(r.fat),n(r.flr),n(r.accC),n(r.accF),INV.has(r.id)?'SIM':''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')));
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`fila_compra_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+}
+
 function subCompras(r){
-  if(r.risco) return subPedidosProd(r);
+  if(r.risco) return subPedidosProd(r)+subPOs(r);
   const rows=[...r.contrib.entries()].map(([n,c])=>{const ls=D.ped.get(n);return {n,c,ls,l0:ls[0]};})
     .sort((a,b)=>(b.c.own+b.c.outros)-(a.c.own+a.c.outros));
   return `<table class="subtbl"><thead><tr><th>Pedido</th><th>Data</th><th class="r">Dias</th><th>Fat. parcial</th><th class="r">Este item</th><th class="r">Outros itens c/ estoque</th><th class="r">Desbloqueia</th><th>Situação após a compra</th></tr></thead><tbody>${
@@ -449,10 +669,34 @@ function subCompras(r){
       const sit=c.parcial?'<span class="tag t-ok">Fatura o item</span>'
         :c.unico?'<span class="tag t-ok">Libera o pedido</span>'
         :`<span class="tag t-alta" title="${esc(outrosBloq.join(', '))}">Ainda depende de ${outrosBloq.length} item(ns)</span>`;
-      return `<tr><td class="mono">${l0.numnota} <span class="muted">(${n})</span></td><td>${fmtD(l0.dt)}</td><td class="r num">${l0.dias}</td><td>${esc(l0.fp)}</td><td class="r num">${brl2.format(c.own)}</td><td class="r num">${c.outros?brl2.format(c.outros):'—'}</td><td class="r num strong">${brl2.format(c.own+c.outros)}</td><td>${sit}</td></tr>`;}).join('')}</tbody></table>`;
+      return `<tr><td class="mono">${l0.numnota} <span class="muted">(${n})</span></td><td>${fmtD(l0.dt)}</td><td class="r num">${l0.dias}</td><td>${esc(l0.fp)}</td><td class="r num">${brl2.format(c.own)}</td><td class="r num">${c.outros?brl2.format(c.outros):'—'}</td><td class="r num strong">${brl2.format(c.own+c.outros)}</td><td>${sit}</td></tr>`;}).join('')}</tbody></table>`+subPOs(r);
 }
 
 function initTables(){
+  T.cheg=makeTable($('tCheg'),[
+    {k:'eta',t:'Previsão',f:r=>`<span class="num ${r.sitEta==='Atrasada'?'neg':''}">${fmtD(r.eta)}</span>`,sort:r=>r.eta?+r.eta:9e15},
+    {k:'sitEta',t:'Situação',f:r=>`<span class="tag ${r.sitEta==='Atrasada'?'t-crit':r.sitEta==='No prazo'?'t-ok':'t-rec'}">${r.sitEta}</span>`},
+    {k:'tipo',t:'Liberação',f:r=>r.tipo==='ped'?'<span class="tag t-media">Pedido completo</span>':'<span class="tag t-rec">Item · fat. parcial</span>'},
+    {k:'numnota',t:'Pedido',f:r=>`<span class="strong mono">${r.numnota}</span> <span class="muted mono">(${r.nunota})</span>`},
+    {k:'dias',t:'Dias',a:'r',f:r=>`<span class="num ${r.dias>30?'neg':''}">${r.dias}</span>`},
+    {k:'refs',t:'Aguardando',f:r=>r.refs.length===1?`<span class="mono">${esc(r.refs[0])}</span>`:`<span class="mono">${esc(r.refs[0])}</span> <span class="muted">+${r.refs.length-1} itens</span>`,sort:r=>r.refs.length},
+    {k:'fat',t:'Fatura',a:'r',f:r=>`<span class="num desb">${brl2.format(r.fat)}</span>`}
+  ],{sortKey:'eta',sortDir:1,id:r=>r.id,sub:subFila,onRender:(rows)=>{
+    $('iCheg').textContent=`${rows.length} liberações · ${brl0.format(rows.reduce((s,r)=>s+r.fat,0))}`; }});
+  T.fila=makeTable($('tFila'),[
+    {k:'pos',t:'#',a:'r',f:r=>`<span class="num muted">${r.pos}</span>`},
+    {k:'tipo',t:'Liberação',f:r=>r.tipo==='ped'?'<span class="tag t-media">Pedido completo</span>':'<span class="tag t-rec">Item · fat. parcial</span>'},
+    {k:'numnota',t:'Pedido',f:r=>`<span class="strong mono">${r.numnota}</span> <span class="muted mono">(${r.nunota})</span>`},
+    {k:'dias',t:'Dias',a:'r',f:r=>`<span class="num ${r.dias>30?'neg':''}">${r.dias}</span>`},
+    {k:'refs',t:'Comprar',f:r=>{const u=[...new Set(r.unc.map(l=>l.ref))]; return (u.length===1?`<span class="mono">${esc(u[0])}</span>`:`<span class="mono">${esc(u[0])}</span> <span class="muted">+${u.length-1} itens</span>`)+(r.jaComp?` <span class="tag t-ok" title="Itens deste pedido já comprados">${r.jaComp} já comprado(s)</span>`:'');},sort:r=>r.unc.length},
+    {k:'compra',t:'Compra necessária',a:'r',f:r=>`<span class="num">${brl2.format(r.compra)}</span>`},
+    {k:'fat',t:'Fatura',a:'r',f:r=>`<span class="num desb">${brl2.format(r.fat)}</span>`},
+    {k:'flr',t:'FLR',a:'r',f:r=>`<span class="flr">${r.flr.toLocaleString('pt-BR',{maximumFractionDigits:1})}×</span>`},
+    {k:'accC',t:'Compra acum.',a:'r',f:r=>`<span class="num muted">${brl0.format(r.accC)}</span>`},
+    {k:'accF',t:'Fatura acum.',a:'r',f:r=>`<span class="num muted">${brl0.format(r.accF)}</span>`},
+    {k:'inv',t:'Verba',a:'c',f:r=>INV.has(r.id)?'<span class="tag t-ok">Dentro</span>':'',sort:r=>INV.has(r.id)?1:0}
+  ],{sortKey:'pos',sortDir:1,id:r=>r.id,sub:subFila,rowClass:r=>INV.has(r.id)?'inv':'',onRender:(rows)=>{
+    $('iFila').textContent=`${rows.length} liberações · compra ${brl0.format(rows.reduce((s,r)=>s+r.compra,0))} · fatura ${brl0.format(rows.reduce((s,r)=>s+r.fat,0))}`; }});
   T.compras=makeTable($('tCompras'),[
     {k:'prio',t:'Prioridade',f:r=>tagPrio(r.prio),sort:r=>r.risco?-1:r.antigo},
     {k:'ref',t:'Referência',f:r=>`<span class="strong mono">${esc(r.ref)}</span>`},
@@ -460,14 +704,17 @@ function initTables(){
     {k:'nPed',t:'Pedidos',a:'r',f:r=>`<span class="num">${r.nPed}</span>`},
     {k:'dem',t:'Qtd. em carteira',a:'r',f:r=>`<span class="num">${dec.format(r.dem)}</span>`},
     {k:'est',t:'Estoque',a:'r',f:r=>`<span class="num ${r.est<0?'neg':''}">${dec.format(r.est)}</span>`},
-    {k:'falta',t:'A comprar',a:'r',f:r=>`<span class="num strong">${dec.format(r.falta)}</span>`},
+    {k:'falta',t:'A comprar',a:'r',f:r=>`<span class="num">${dec.format(r.falta)}</span>`},
+    {k:'trans',t:'Em trânsito',a:'r',f:r=>r.trans?`<span class="num">${dec.format(r.trans)}</span>`:'<span class="muted">—</span>'},
+    {k:'saldo',t:'Saldo a comprar',a:'r',f:r=>`<span class="num strong ${r.saldo>0?'neg':''}">${dec.format(r.saldo??r.falta)}</span>`},
+    {k:'sit',t:'Situação',f:r=>sitTag(r),sort:r=>({'Sem compra':5,'Compra parcial':4,'Entrega atrasada':3,'Comprado (sem data)':2,'Comprado':1}[r.sit]||0)},
     {k:'vlr',t:'Valor do item',a:'r',f:r=>`<span class="num">${brl2.format(r.vlr)}</span>`},
     {k:'desb',t:'Desbloqueia',a:'r',f:r=>r.risco?'<span class="muted">—</span>':`<span class="num desb">${brl2.format(r.desb)}</span>`},
     {k:'imed',t:'Imediato',a:'r',f:r=>r.risco?'<span class="muted">—</span>':`<span class="num ${r.imed?'':'muted'}">${brl2.format(r.imed)}</span>`},
     {k:'alav',t:'Alavanc.',a:'r',f:r=>r.risco?'':`<span class="num ${r.alav>=2?'strong':''}">${r.alav.toLocaleString('pt-BR',{maximumFractionDigits:1})}×</span>`},
     {k:'antigo',t:'Pedido + antigo',a:'r',f:r=>`<span class="num ${r.antigo>30?'neg':''}">${r.antigo} d</span>`}
   ],{sortKey:'desb',id:r=>r.codprod,sub:subCompras,onRender:(rows)=>{
-    $('iCompras').textContent=`${rows.length} produtos · ${brl0.format(rows.reduce((s,r)=>s+r.vlr,0))} em itens · ${brl0.format(rows.reduce((s,r)=>s+r.desb,0))} desbloqueáveis`; }});
+    $('iCompras').textContent=`${rows.length} produtos · ${brl0.format(rows.reduce((s,r)=>s+r.vlr,0))} em itens `; }});
 
   T.pedidos=makeTable($('tPedidos'),[
     {k:'numnota',t:'Pedido',f:r=>`<span class="strong mono">${r.numnota}</span> <span class="muted mono">(${r.nunota})</span>`},
@@ -478,6 +725,7 @@ function initTables(){
     {k:'vlrDisp',t:'Disponível parado',a:'r',f:r=>`<span class="num">${r.vlrDisp?brl2.format(r.vlrDisp):'—'}</span>`},
     {k:'vlrTot',t:'Valor do pedido',a:'r',f:r=>`<span class="num strong">${brl2.format(r.vlrTot)}</span>`},
     {k:'fp',t:'Fat. parcial',a:'c'},
+    {k:'scCob',t:'Compras',f:r=>!D.C?'':r.scCob===r.itensSC?`<span class="tag t-ok">Tudo comprado${r.eta?' · '+r.eta.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):''}</span>`:r.scCob?`<span class="tag t-alta">${r.scCob}/${r.itensSC} comprados</span>`:'<span class="tag t-crit">Nada comprado</span>',sort:r=>r.scCob/r.itensSC},
     {k:'acao',t:'Ação sugerida',f:r=>r.fp!=='SIM'&&r.vlrDisp>0?'<span class="tag t-alta">Avaliar fatura parcial</span>':(r.fp==='SIM'&&r.vlrDisp>0?'<span class="tag t-ok">Faturar disponível</span>':'<span class="tag t-rec">Acompanhar compra</span>'),sort:r=>r.fp!=='SIM'&&r.vlrDisp>0?2:r.vlrDisp>0?1:0}
   ],{sortKey:'vlrTot',id:r=>r.nunota,sub:r=>`<table class="subtbl"><thead><tr><th>Referência</th><th class="r">Qtd.</th><th class="r">Estoque</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>${
       [...r.ls].sort((a,b)=>(a.status==='SC'?0:1)-(b.status==='SC'?0:1)).map(l=>`<tr><td class="mono">${esc(l.ref)}</td><td class="r num">${dec.format(l.qtd)}</td><td class="r num">${dec.format(l.est)}</td><td class="r num">${brl2.format(l.vlr)}</td><td>${STATUS[l.status]?.lbl||esc(l.status)}</td></tr>`).join('')}</tbody></table>`,
@@ -512,8 +760,10 @@ function initTables(){
 }
 
 const match=(q,...v)=>!q||v.some(x=>String(x).toLowerCase().includes(q));
-function filterCompras(){ const q=$('qCompras').value.trim().toLowerCase(), p=$('fPrio').value;
-  T.compras.set(D.compras.filter(r=>(!p||r.prio===p)&&match(q,r.ref,r.codprod))); }
+function filterCompras(){ const q=$('qCompras').value.trim().toLowerCase(), p=$('fPrio').value, si=$('fSit').value;
+  T.compras.set(D.compras.filter(r=>(!p||r.prio===p)&&(!si||r.sit===si)&&match(q,r.ref,r.codprod))); }
+function filterCheg(){ const q=$('qCheg').value.trim().toLowerCase(), f=$('fCheg').value;
+  T.cheg.set(D.chegando.filter(r=>(!f||r.sitEta===f)&&match(q,r.numnota,r.nunota,...r.refs))); }
 function filterPedidos(){ const q=$('qPedidos').value.trim().toLowerCase(), f=$('fParc').value;
   T.pedidos.set(D.pedidos.filter(r=>(!f||r.fp===f)&&match(q,r.numnota,r.nunota,...r.ls.map(l=>l.ref)))); }
 function filterFab(){ const q=$('qFab').value.trim().toLowerCase(); T.fab.set(D.fabr.filter(r=>match(q,r.ref,r.codprod))); }
@@ -522,10 +772,10 @@ function filterItens(){ const q=$('qItens').value.trim().toLowerCase(), s=$('fSt
 
 function exportCompras(){
   const q=$('qCompras').value.trim().toLowerCase(), p=$('fPrio').value;
-  const rows=D.compras.filter(r=>(!p||r.prio===p)&&match(q,r.ref,r.codprod)).sort((a,b)=>b.vlr-a.vlr);
+  const si=$('fSit').value; const rows=D.compras.filter(r=>(!p||r.prio===p)&&(!si||r.sit===si)&&match(q,r.ref,r.codprod)).sort((a,b)=>b.desb-a.desb);
   const n=v=>String(Math.round(v*1000)/1000).replace('.',',');
-  const lines=[['Prioridade','Referência','Cód. produto','Pedidos','Qtd. em carteira','Estoque','A comprar','Valor em carteira','Dias pedido mais antigo','Pedidos (nº)'].join(';')];
-  rows.forEach(r=>lines.push([r.prio==='Risco'?'Risco de falta':r.prio,r.ref,r.codprod,r.nPed,n(r.dem),n(r.est),n(r.falta),n(Math.round(r.vlr*100)/100),r.antigo,
+  const lines=[['Prioridade','Referência','Cód. produto','Pedidos','Qtd. em carteira','Estoque','A comprar','Em trânsito','Saldo a comprar','Situação','Previsão cobertura','Valor do item','Desbloqueia faturamento','Desbloqueio imediato','Dias pedido mais antigo','Pedidos (nº)'].join(';')];
+  rows.forEach(r=>lines.push([r.prio==='Risco'?'Risco de falta':r.prio,r.ref,r.codprod,r.nPed,n(r.dem),n(r.est),n(r.falta),n(r.trans||0),n(r.saldo??r.falta),r.sit||'',r.data?fmtD(r.data):'',n(Math.round(r.vlr*100)/100),n(Math.round(r.desb*100)/100),n(Math.round(r.imed*100)/100),r.antigo,
     [...new Set(r.scLines.map(l=>l.numnota))].join(', ')].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')));
   const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
@@ -533,19 +783,29 @@ function exportCompras(){
 }
 
 /* ===== CARGA ===== */
-function load(ab, updated){
-  const L=parseWorkbook(ab);
-  if(!L.length) throw new Error('O arquivo não contém linhas de pedido reconhecíveis.');
-  D=compute(L);
-  $('mUpd').textContent=updated||'—';
+const RAW={L:null,C:null};
+function rebuild(){
+  if(!RAW.L) return;
+  D=compute(RAW.L,RAW.C);
   $('emptyState').classList.add('hidden'); $('app').classList.remove('hidden');
   renderAll();
 }
+function ingest(ab, updated){
+  const rows=readRows(ab), t=tipoArquivo(rows);
+  if(t==='pedidos'){ const L=parseWorkbook(rows); if(!L.length) throw new Error('Arquivo de pedidos sem linhas reconhecíveis.'); RAW.L=L; $('mUpd').textContent=updated||'—'; }
+  else if(t==='compras'){ RAW.C=parseCompras(rows); $('mUpdC').textContent=updated||'—'; }
+  else throw new Error('Arquivo não reconhecido.');
+}
 function showEmpty(msg){ $('cfgPath').textContent=CONFIG.dataUrl; $('errMsg').textContent=msg||''; $('emptyState').classList.remove('hidden'); }
-function loadFile(f){
-  const rd=new FileReader();
-  rd.onload=()=>{ try{ load(rd.result, new Date(f.lastModified).toLocaleString('pt-BR')+' (arquivo local)'); }catch(e){ showEmpty(e.message); } };
-  rd.readAsArrayBuffer(f);
+function loadFiles(files){
+  Promise.all([...files].map(f=>f.arrayBuffer().then(ab=>ingest(ab,new Date(f.lastModified).toLocaleString('pt-BR')+' (local)'))))
+    .then(()=>RAW.L?rebuild():showEmpty('Carregue também o arquivo de pedidos pendentes.')).catch(e=>showEmpty(e.message));
+}
+async function fetchXlsx(url){
+  const res=await fetch(url+'?v='+Date.now(),{cache:'no-store'});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const lm=res.headers.get('Last-Modified');
+  return {ab:await res.arrayBuffer(),upd:lm?new Date(lm).toLocaleString('pt-BR'):new Date().toLocaleString('pt-BR')};
 }
 
 document.addEventListener('DOMContentLoaded',async()=>{
@@ -553,23 +813,32 @@ document.addEventListener('DOMContentLoaded',async()=>{
   $('tabs').addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(!b) return;
     document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t===b));
     document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('hidden',p.dataset.p!==b.dataset.t)); });
-  $('qCompras').addEventListener('input',filterCompras); $('fPrio').addEventListener('change',filterCompras);
+  $('qCompras').addEventListener('input',filterCompras); $('fPrio').addEventListener('change',filterCompras); $('fSit').addEventListener('change',filterCompras);
+  $('qCheg').addEventListener('input',filterCheg); $('fCheg').addEventListener('change',filterCheg);
   $('qPedidos').addEventListener('input',filterPedidos); $('fParc').addEventListener('change',filterPedidos);
   $('qFab').addEventListener('input',filterFab);
   $('qItens').addEventListener('input',filterItens); $('fStatus').addEventListener('change',filterItens);
   $('expCompras').addEventListener('click',exportCompras);
-  $('fileIn').addEventListener('change',e=>e.target.files[0]&&loadFile(e.target.files[0]));
+  $('expFila').addEventListener('click',exportFila);
+  $('qFila').addEventListener('input',filterFila); $('fFila').addEventListener('change',filterFila);
+  try{ const v=localStorage.getItem('verbaCompra'); if(v) $('vVerba').value=v; }catch(e){}
+  $('vVerba').addEventListener('input',()=>D&&aplicaVerba());
+  $('rank').addEventListener('click',e=>{const r=e.target.closest('.rank'); if(!r) return;
+    document.querySelector('.tab[data-t=compras]').click();
+    const c=D.compras.find(x=>x.codprod===+r.dataset.cod); $('fPrio').value=''; $('fSit').value=''; $('qCompras').value=c.ref; filterCompras();
+    $('tCompras').querySelector('tr.main')?.click(); $('tabs').scrollIntoView({behavior:'smooth'}); });
+  $('fileIn').addEventListener('change',e=>e.target.files.length&&loadFiles(e.target.files));
   const dz=document.body;
   dz.addEventListener('dragover',e=>{e.preventDefault();$('emptyState').classList.add('over');});
   dz.addEventListener('dragleave',()=>$('emptyState').classList.remove('over'));
-  dz.addEventListener('drop',e=>{e.preventDefault();$('emptyState').classList.remove('over');const f=e.dataTransfer.files[0];f&&loadFile(f);});
+  dz.addEventListener('drop',e=>{e.preventDefault();$('emptyState').classList.remove('over');e.dataTransfer.files.length&&loadFiles(e.dataTransfer.files);});
 
+  const [p,c]=await Promise.allSettled([fetchXlsx(CONFIG.dataUrl),fetchXlsx(CONFIG.comprasUrl)]);
   try{
-    const res=await fetch(CONFIG.dataUrl+'?v='+Date.now(),{cache:'no-store'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const lm=res.headers.get('Last-Modified');
-    load(await res.arrayBuffer(), lm?new Date(lm).toLocaleString('pt-BR'):new Date().toLocaleString('pt-BR'));
-  }catch(e){ showEmpty('Não foi possível carregar o arquivo ('+e.message+').'); }
+    if(c.status==='fulfilled'){ try{ ingest(c.value.ab,c.value.upd); }catch(e){ console.warn(e); } }
+    if(p.status!=='fulfilled') throw p.reason;
+    ingest(p.value.ab,p.value.upd); rebuild();
+  }catch(e){ showEmpty('Não foi possível carregar o arquivo de pedidos ('+e.message+').'); }
 });
 </script>
 </body>
