@@ -23,8 +23,7 @@ apps-script/gmail_para_github.gs   script do Google Apps Script (referência; ro
 2. Preencha `owner` e `repo` no início do script.
 3. Gere um token no GitHub (*Settings > Developer settings > Fine-grained tokens*) com acesso ao repositório e permissão **Contents: Read and write**.
 4. No Apps Script, em *Configurações do projeto > Propriedades do script*, crie `GITHUB_TOKEN` com o token.
-5. Execute `enviarPedidosPendentes` uma vez para autorizar o acesso ao Gmail.
-6. Crie um acionador diário baseado no tempo, alguns minutos após o horário de chegada do e-mail.
+5. Execute a função `criarAcionadorDiario` uma vez e autorize o acesso. Ela agenda a execução automática todos os dias entre 23h e 0h (o e-mail chega por volta das 22h) e uma repescagem entre 6h e 7h, caso o e-mail atrase. O mesmo e-mail nunca é enviado duas vezes.
 
 O script sempre grava o anexo como `data/PEDIDOS_PENDENTES.xlsx`, independentemente do prefixo numérico que o Sankhya coloca no nome.
 
